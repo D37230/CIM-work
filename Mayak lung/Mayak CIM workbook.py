@@ -1,6 +1,7 @@
 
 # coding: utf-8
 
+# In[1]~
 
 # load some standard libraries
 import os
@@ -12,6 +13,7 @@ import h5py  # Hdf5 library
 
 # # Define mygithub and hdf5path directories and all else should be fine
 
+# In[2]~
 
 
 mygithub = 'C:/Users/Dale/Documents/GitHub/'
@@ -32,6 +34,7 @@ from cimfuncs import mkcim, getCI, dispcimbnds, mkQmat, modcimprmbnds
 
 # # Set up hdf5 file
 
+# In[3]~
 
 
 irlzfn = 'res_ad13(final).h5'
@@ -70,6 +73,7 @@ elif dsunits == "Gy":
 lngidx = iorgindx['LUNG']
 
 
+# In[4]~
 
 
 # associative array for access to internal dose person-specific info
@@ -107,6 +111,7 @@ lngidx = iorgindx['LUNG']
 
 # # Open ungrouped data file from modinfodir
 
+# In[5]~
 
 ungfname = 'lunpyung.csv'
 mwcung = np.genfromtxt(modinfodir + ungfname, delimiter=',', names=True)
@@ -116,6 +121,7 @@ print "Ungrouped record count:", len(mwcung)
 
 # ## Define subset selection variables 
 
+# In[6]~
 
 reaux = mwcung['mxplant83'] <= 4
 premon2 =(mwcung['tsmcat'] < 3) + 0
@@ -128,6 +134,7 @@ print  "\nMonitored or Re/Aux", np.sum(hasmonre)
 
 # ## Set model form and analysis subset
 
+# In[7]~
 
 '''
     umod = 0 | 3   # male + F:M sex ratio model
@@ -162,6 +169,7 @@ print len(mwcungsub), 'records in anlaysis subset'
 
 # ## Read PSV file
 
+# In[8]~
 
 psavef = open(modinfodir + psvname, 'r')
 models = getmodinfo(psavef)
@@ -174,6 +182,7 @@ print "CIM computation model:", models[umod]['title']
 
 # ## Get basic info for internal dose interpolation and interpolate mean doses
 
+# In[9]~
 
 lag = 5
 imdinfo = setdoseintinfo(ipindx, mwcungsub, 'udbid', 'yr', lag, ifromyr, itoyr)
@@ -182,6 +191,7 @@ idbar = doseinterp(irlzdb, 'sumstat', 'doses/am', imdinfo, scale=dscale, dlayer=
 
 # ## Define model covariates
 
+# In[10]~
 
 
 male = np.reshape(((mwcungsub['sex'] == 0) + 0),(-1,1))
@@ -231,6 +241,7 @@ print "Total cases: ", '%6.0d' % np.sum(cases)
 
 # ## Define model-specific subterm covariate vector list
 
+# In[11]~
 
 stcovs = []
 # baseline covariates (LOGL 0)
@@ -266,6 +277,7 @@ print "Subterm covariate lists:", len(stcovs)
 
 # ## Fitted value computaitons for this model in these data
 
+# In[12]~
 
 
 mfmodel = models[umod]  # compute subterm fitted values
@@ -284,6 +296,7 @@ resid = cases - mu
 # ## Computation of Q matrix
 # $$ Q = \frac{ d \mu / d \beta}{\mu }$$
 
+# In[13]~
 
 
 Q = mkQmat(stcovs, mu, mfit, mfmodel['type'])
@@ -324,6 +337,7 @@ for i in range(len(parmses)):
 
 # ## G matrix for various Pu models  $$   \frac{d \mu}{d x}$$
 
+# In[14]~
 
 prmcov = mfmodel['prmcov']
 prmvec = mfmodel['prmvec']
@@ -365,6 +379,7 @@ G = dparm * nopubase
 
 # ## CIM setup
 
+# In[15]~
 
 irlzbase = irlzdb['realizations']
 rlzcnt = len(irlzbase.keys())
@@ -384,6 +399,7 @@ cim = mkcim(Q, G, irlzbase, rlzcnt, 'doses', imdinfo, prmcov, dslayer=lngidx, sc
 
 # ## Pu ERR CIM
 
+# In[16]~
 
 
 mpuno = dp1-1
@@ -396,6 +412,7 @@ mpuwald = getCI(mprmest, mprmse, 0, 0.05)
 dispcimbnds('Female Pu dose response ERR:',mprmest,mpuwald, mpucim)
 
 
+# In[18]~
 
 modcimprmbnds(mfmodel, cim, level=95)
 modcimprmbnds(mfmodel, cim, level=90)
@@ -403,6 +420,7 @@ modcimprmbnds(mfmodel, cim, level=68)
 modcimprmbnds(mfmodel, cim, level=99)
 
 
+# In[ ]~
 
 
 

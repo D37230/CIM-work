@@ -260,7 +260,7 @@ dfmodcovs = pd.DataFrame({'rowno': monindx.ravel()})
 
 
 
-for var in ['udbid', 'cases', 'pyr', 'year', 'male', 'female', 'lage70' , 'lage70sq', 'pky50', 'lppd', 'xdgy', 'pudgy']:
+for var in ['udbid', 'cases', 'pyr', 'year', 'male', 'female', 'lage70' , 'lage70sq', 'pky50', 'lppd', 'xdgy', 'presur0', 'presur1', 'presur2', 'presur3', 'presur4', 'presur5', 'presur6', 'fpusur6', 'pudgy']:
     v = eval(var)
     v = v.ravel()
     print var, v.shape 

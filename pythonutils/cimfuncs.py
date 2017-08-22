@@ -137,6 +137,62 @@ def mkcim(Q, G, rlzdb, rlzcnt, dose, interpinfo,
     cim = np.cov(qgd)
     return np.dot(prmcov, np.dot(cim, prmcov))
 
+def mkcimdr(Q, G, intdreps, rlzcnt, prmcov, reppfx= 'rep', infoevery=100):
+    '''  
+    Compute CIM adjustment matrix
+
+    Arguments:
+
+        Q
+            Q matrix (score like as per computation notes)
+
+        G
+            Diagonal of G matrix (as per computation notes)
+
+           
+        rlzcnt
+            number of realizations
+
+        prmcov
+            parameter covariance matrix
+            
+        reppfx
+            Replicaiton variable name prefix (defualt 'rep') names are
+            assumed to have the form reppfxn  with n is the replication number
+            
+        infoevery
+            print porgress indicator every infoevery realizations
+        
+    Returns:
+        
+        CIM matrix
+            I-1 M I-1
+    '''
+    drows = intdreps['rowno'].astype(int)
+    drep = np.zeros_like(G)
+    QG = np.transpose(Q*G)
+    rlzno = 0
+    infotimes = 0
+    print "Number of realizations ", rlzcnt
+    for rno in range(rlzcnt):
+        repname = reppfx + str(rno)
+        idrlz = intdreps[repname]
+        idrlz = np.reshape(idrlz, (-1, 1))
+        drep[drows] = idrlz
+        if rno == 0:
+            qgd = np.dot(QG, (drep))
+        else:
+            qgd = np.column_stack((qgd, np.dot(QG, drep)))
+        rlzno += 1
+        if infoevery:
+            if (rlzno % infoevery) == 0:
+                infotimes += 1
+                print rlzno, " ",
+                if infotimes == 10:
+                    infotimes = 0
+    cim = np.cov(qgd)
+    return np.dot(prmcov, np.dot(cim, prmcov))
+
 def logNormal2Normal(amean, asd):
     '''
     lnmusig - compute log-scale mean and sd given aritimetic mean and sd

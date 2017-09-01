@@ -1,37 +1,44 @@
 #!/usr/bin/env python
 import re
 import numpy as np
+from operator import itemgetter
+from itertools import groupby
 
 # first we need to identify where each model
 # is located within the file
 def getmodinfo(psvfile):
     """
-    **Parse contesnts of epicure psv file saving contents in a list of dictionaries**\n 
-    **input**:\n
-    psvfile  - psv file handle\n
-    **returns**:\n
-    models   - list of dictionaries for each model in the file\n\n\n
+    **Parse contents of epicure psv file saving contents in a list of dictionaries**
+    **input**:
+	
+    psvfile  - psv file handle
+    
+	**returns**:
+    models   - list of dictionaries for each model in the file
+	
+	
     **Model dictionary keys**\n
-    title    - user-defined name for model\n
-    prog     - program in which model fit (AMFIT, GMBO, PEANUTS)\n
-    type     - model type (form)\n
-                1  Additive ERR\n
-                2  Additive RR\n
+    title    - user-defined name for model
+    prog     - program in which model fit (AMFIT, GMBO, PEANUTS)
+    type     - model type (form)
+                1  Additive ERR
+                2  Additive RR
                 3  EAR\n
-                4  Geometric mixture\n
-                5  Mulitplicative ERR\n
-    totprm   - total number of model parameters (not counting strata)\n
-    freprm   - total number of free parameters \n
-    strprm   - number of strata\n
-    df       - degrees of freeom (AMFIT, unconditional GNBO) or number of risk sets (PEANUTS, conditional GMBO)\n
-    dev      - deviance (AMFIT, unconditional GNBO) or -2*loglik (PEANUTS, conditional GMBO))\n
-    prmvec   - parameter vector (totprm,1)\n
-    prmcov   - parameter covariance matrix (totprm,totprm)\n
-    prmstat  - parameter status (0 free; 1 fixed, not aliased; 2 aliased)\n
-    prmnames - covariate names\n
+                4  Geometric mixture
+                5  Mulitplicative ERR
+    totprm   - total number of model parameters (not counting strata)
+    freprm   - total number of free parameters 
+    strprm   - number of strata
+    df       - degrees of freeom (AMFIT, unconditional GNBO) or number of risk sets (PEANUTS, conditional GMBO)
+    dev      - deviance (AMFIT, unconditional GNBO) or -2*loglik (PEANUTS, conditional GMBO))
+    prmvec   - parameter vector (totprm,1)
+    prmcov   - parameter covariance matrix (totprm,totprm)
+    prmstat  - parameter status (0 free; 1 fixed, not aliased; 2 aliased)
+    prmnames - covariate names
     """
     
     indx = []
+	
     # establish a regular expression
     models_pattern = "AMFIT|GMBO|PECAN|PEANUTS"
     models_regex = re.compile(models_pattern, re.IGNORECASE)
@@ -61,8 +68,6 @@ def getmodinfo(psvfile):
         # model code
         model.update({'type': int(model_rec[1])})
 
-        # print model
-
         # total number of parameters
         model.update({'totprm': int(model_rec[2])})
         # number of free parameters
@@ -78,7 +83,7 @@ def getmodinfo(psvfile):
         # add the model to the models buffer
         models.append(model)
 
-    # loop throught models to get parameter and covaraite info
+    # loop throught models to get parameter and covariate info
     for model in models:
         # set up our interval for the read
         # bgn == start line
@@ -86,70 +91,60 @@ def getmodinfo(psvfile):
         bgn = model['index'] + 1
         end = model['totprm'] + bgn
 
-        # these will be terms for each model
+        # subterms
         subterminfo = []
         # parameter names
         pnams = []
-        # free or fixed
+        # free or fixed parameters
         pfixd = []
-        # parameter estimates for each model
+        # parameter estimates
         pestm = []
         # covariance matrix
         covmr = []
         
-        # read the data
-        trmno = -1
-        subtno = -1
-        stprmcnt = 0
-        pno = -1
-        stinfo = ()
+        lines = []
         for i in range(bgn, end):
-            pno += 1
-
             line = psave_content[i].strip().split(',')
             # replace epicure .
             line = [re.sub(r'^\.', '0', i) for i in line]
+            lines.append(line)
             # parameter name
             pnams.append(line[3].strip('"'))
             # fixed or free -- 0,free 1,fixed 2,redundant (fixed)
             pfixd.append(int(line[4]))
             # parameter estimate (to vector)
-            # print line[5]
             pestm.append(float(line[5]))
             # covariance matrix fow
             covmr.append([float(i) for i in line[7:]])
+        
+        # group terms
+        groups = groupby(lines, key=itemgetter(1,2))
+        term_groups = []
+		
+        for key,group in groups:
+            members = list(group)
+            # parameter estimates
+            estm = []
+            # parameter names
+            pnam = []
+			
+            for member in members:
+                pnam.append(member[3].strip('"'))
+                estm.append(float(member[5]))
+			
+            # this term number
+            tno = int(key[0])
+            # subterm number for this term
+            sno = int(key[1])
+            # line number start for this term
+            lno = int(members[0][0]) - 1
+            # number of subterms
+            cnt = len(members)
+            
+            term_groups.append([tno, sno, lno, cnt, estm, pnam])
 
-            # create subterm info list
-            # termno, subtermno, start parm, parameter count
-            thistrm = int(line[1])
-            thissubt = int(line[2])
-
-            if ((thistrm != trmno) | (thissubt != subtno) | (i == end)):
-                if(trmno >= 0):
-                    stinfo.append(stprmcnt) # + (pno == (model['totprm']-1)))
-                    stpv = pestm[stinfo[2]:stinfo[2]+stinfo[3]]
-                    # print stpv
-                    stinfo.append(stpv)
-                    subterminfo.append(stinfo)
-
-                stinfo = [thistrm, thissubt, pno]
-                trmno = thistrm
-                subtno = thissubt
-                stprmcnt = 0
-
-            stprmcnt += 1
-
-        stinfo.append(stprmcnt)
-        stpv = pestm[stinfo[2]:stinfo[2]+stinfo[3]]
-        # print stpv
-        stinfo.append(stpv)
-        subterminfo.append(stinfo)
         # append/extend to the model buffer
-        model.update({'subterms': subterminfo,
-                      'prmnames': np.array(pnams),
-                      'prmstat': np.array(pfixd),
-                      'prmvec': np.array(pestm),
-                      'prmcov': np.array(covmr)})
+        model.update({'subterms': term_groups,'prmnames': np.array(pnams),'prmstat': np.array(pfixd),'prmvec': np.array(pestm),'prmcov': np.array(covmr)})
 
     return(models)
     # end of getmodinfo function

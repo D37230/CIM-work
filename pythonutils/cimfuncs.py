@@ -181,6 +181,14 @@ def mkcimdr(Q, G, intdreps, rlzcnt, prmcov, reppfx= 'rep', infoevery=100):
         drep[drows] = idrlz
         if rno == 0:
             qgd = np.dot(QG, (drep))
+            qgd0 = qgd
+
+            '''            
+            print '\n',repname
+            for i in range(18):
+                print i, qgd0[i]
+            print '\n'
+            '''            
         else:
             qgd = np.column_stack((qgd, np.dot(QG, drep)))
         rlzno += 1
@@ -191,6 +199,7 @@ def mkcimdr(Q, G, intdreps, rlzcnt, prmcov, reppfx= 'rep', infoevery=100):
                 if infotimes == 10:
                     infotimes = 0
     cim = np.cov(qgd)
+       
     return np.dot(prmcov, np.dot(cim, prmcov))
 
 def logNormal2Normal(amean, asd):

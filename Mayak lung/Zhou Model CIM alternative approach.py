@@ -1,3 +1,4 @@
+   
 
 # coding: utf-8
 '''
@@ -152,6 +153,10 @@ fpusur6 = np.reshape(fpusur6,(-1,1))
 
 pudgy = mwcmc['pudgy']
 pudgy = np.reshape(pudgy,(-1,1))
+np.sum(presur0)
+presur0[pudgy>0]=0
+np.sum(presur0)
+
 mpudgy = male*pudgy
 fpudgy = female*pudgy
 
@@ -267,12 +272,9 @@ elif umod == 2 : # sex-specific ERR
 
 
 G = dparm * nopubase
-np.savetxt('qmatzz.csv', Q, delimiter=',', header=colhdr, comments='')
-
-np.savetxt('gdiagzz.csv',G, delimiter=',', header='gdiag', comments='')
+Gadj = prmvec[8]*G
 # compute CIM matrix
-cim = mkcimdr(Q, G, intdrep, 1000, prmcov)
-np.savetxt('cimzz.csv',cim, delimiter=',', header=colhdr,  comments='')
+cim = mkcimdr(Q, Gadj, intdrep, 1000, prmcov)
 # Wald and Adjusted bounds
 mpuno = dp1-1
 mprmest = prmvec[mpuno]

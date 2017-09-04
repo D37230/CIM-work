@@ -274,7 +274,7 @@ elif umod == 2 : # sex-specific ERR
 G = dparm * nopubase
 Gadj = prmvec[8]*G
 # compute CIM matrix
-cim = mkcimdr(Q, Gadj, intdrep, 1000, prmcov)
+cim = mkcimdr(Q, G, intdrep, 1000, prmcov)
 # Wald and Adjusted bounds
 mpuno = dp1-1
 mprmest = prmvec[mpuno]

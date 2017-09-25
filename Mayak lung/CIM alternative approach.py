@@ -24,8 +24,8 @@ import pandas as pd
 
 # Define mygithub and hdf5path directories and all else should be fine
 
-mygithub = 'C:/Users/Dale/Documents/GitHub/'
-hdf5path = 'k:/UralsDosimetry/'
+mygithub = 'C:/Users/prest/Documents/GitHub/'
+hdf5path = 'h:/UralDosimetry/'
 
 # specify dose repolication and modcov file names
 intdrepfn = 'dfreps.csv'
@@ -70,7 +70,7 @@ psavef.close()
 
 '''
 
-umod = 1
+umod = 2
 
 
 tnames = ["Baseline", "Smoking", "External dose", "Pu Surrogate" ,"Pu dose"]
@@ -273,7 +273,51 @@ mprmest = prmvec[mpuno]
 mprmse = np.sqrt(prmcov[mpuno, mpuno])
 
 mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.75)
+mpuwald = getCI(mprmest, mprmse, 0, 0.75)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.5)
+mpuwald = getCI(mprmest, mprmse, 0, 0.5)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.32)
+mpuwald = getCI(mprmest, mprmse, 0, 0.32)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.25)
+mpuwald = getCI(mprmest, mprmse, 0, 0.25)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.10)
+mpuwald = getCI(mprmest, mprmse, 0, 0.10)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+mmse = np.sqrt(cim[mpuno, mpuno])
 mpucim = getCI(mprmest, mprmse, mmse, 0.05)
 mpuwald = getCI(mprmest, mprmse, 0, 0.05)
 dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.025)
+mpuwald = getCI(mprmest, mprmse, 0, 0.025)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.01)
+mpuwald = getCI(mprmest, mprmse, 0, 0.01)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+
+
+mmse = np.sqrt(cim[mpuno, mpuno])
+mpucim = getCI(mprmest, mprmse, mmse, 0.005)
+mpuwald = getCI(mprmest, mprmse, 0, 0.005)
+dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+
+modcimprmbnds(mfmodel, cim, level=68)
 modcimprmbnds(mfmodel, cim, level=95)

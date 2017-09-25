@@ -6,6 +6,7 @@ Created on Mon Sep 11 07:11:32 2017
 """
 import numpy as np
 import pandas as pd
+import h5py
 
 def addtopg(h5pg, p, dsdat, dstype, dscols, rlzcnt, yrcnt, pu='', px=''):
     '''
@@ -41,17 +42,20 @@ def addtopg(h5pg, p, dsdat, dstype, dscols, rlzcnt, yrcnt, pu='', px=''):
     if isexposed:
         # fill 0 dose with previous years value
         doses = doses.apply(lambda x: x.replace(to_replace=0, method='ffill'), axis=0)
-        dsarr = doses.as_matrix(columns=dscols)
-        dsarr = dsarr.reshape((rlzcnt,yrcnt,-1),order='C')
         dsmn = 0 # np.mean(dsarr,axis=0)
-        pgroup = pstr + '/' + dstype
         try:
-            h5pg[pgroup][:]
-            px += dstype + ' '
+            dsarr = doses.as_matrix(columns=dscols)
+            dsarr = dsarr.reshape((rlzcnt,yrcnt,-1),order='C')
+            pgroup = pstr + '/' + dstype
+            try:
+                h5pg[pgroup][:]
+                px += dstype + ' '
+            except:
+                pu += dstype + ' ' 
+                h5pg.create_dataset(pgroup,data=dsarr,dtype='f',compression='gzip',compression_opts=9)
         except:
-            pu += dstype + ' ' 
-            h5pg.create_dataset(pgroup,data=dsarr,dtype='f',compression='gzip',compression_opts=9)
-    
+            print "***** Bad data ***** data sysnum ",p
+            
     return pu, px, dsmn
 
 def updatepg (h5file, dosecsv, dtype, dshdr, dscols, nreps, yrcnt, pperck, ckmax ):
@@ -123,7 +127,7 @@ def batchinfo(batchfn, iext, chksz = 300000, usecols= 3):
                     'nreps': rlzcnt})
     return runinfo
 
-def trch5update(h5fn,popnm, batch, batchnm):
+def h5update(h5fn,popnm, batch, batchnm):
     '''
         trch5update :  Update TRC/EURT hdf5 file using raw TRDS16 output files
         
@@ -152,7 +156,7 @@ def trch5update(h5fn,popnm, batch, batchnm):
     icsvfn  = batchnm + "." + iext
     xcsvfn  = batchnm + "." + xext
     print icsvfn
-    h5pg = h5py.File(h5fn)
+    h5pg = h5py.File(h5fn,'a')
     lastkeycnt = len(h5pg.keys())
     print lastkeycnt
     
@@ -176,12 +180,10 @@ def trch5update(h5fn,popnm, batch, batchnm):
     ckmax = 1000/pperck
     if ckmax*pperck < 1000:
         ckmax +=1
-       
-    ckno=0
     
     # h5pgupdate (h5file, dosecsv, dshdr, dscols, nreps, yrcnt, pperck, ckmax ):
-    trch5.updatepg(h5pg, icsvfn, 'int', ihdr,dscols, nreps, yrcnt, pperck, ckmax )
-    trch5.updatepg(h5pg, xcsvfn, 'ext', ihdr,dscols, nreps, yrcnt, pperck, ckmax )
+    updatepg(h5pg, icsvfn, 'int', ihdr,dscols, nreps, yrcnt, pperck, ckmax )
+    updatepg(h5pg, xcsvfn, 'ext', ihdr,dscols, nreps, yrcnt, pperck, ckmax )
     
     
     h5pg.attrs['yrfrom']=yrfrom    
@@ -193,11 +195,10 @@ def trch5update(h5fn,popnm, batch, batchnm):
     keylist = h5pg.keys()
     newkeycnt = len(keylist)
     newkeys = newkeycnt  - lastkeycnt
-    print '\n',newkeys, "members added to ", popnm, " HDF5 from batch", batchid
+    print '\n',newkeys, "members added to ", popnm, " HDF5 from batch", batchnm
     print 'Total members in', popnm, 'HDF5 file:', newkeycnt
     
     np.savetxt(popnm+'keylist.csv',keylist,fmt='%s')
        
     h5pg.close()    
-    
         

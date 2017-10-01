@@ -8,7 +8,102 @@ import numpy as np
 import pandas as pd
 import h5py
 
-def addtopg(h5pg, p, dsdat, dstype, dscols, rlzcnt, yrcnt, pu='', px=''):
+def h5update(h5pg,popnm, batch, batchnm, udoses):
+    '''
+        trch5update :  Update TRC/EURT hdf5 file using raw TRDS16 output files
+        
+        Arguments:
+            
+            h5fn
+                HDF5 file name  (opened and closed inside this function)
+            
+            popnm
+                population name:  'trc' or 'eurt'
+            
+            batch
+                batch file suffix (like '2k-3k')
+                
+            batchnm
+                root of batchfile name with path but no extension
+                extension (ein/tin, eou/tou) added in this routine
+            
+            udoses
+                names of doses (columns to be included in hdf5 files)
+    '''
+    if popnm == "trc":
+        iext = "tin"
+        xext = "tou"
+    elif popnm == "eurt":
+        iext = "ein"
+        xext = "eou" 
+        
+    icsvfn  = batchnm + "." + iext
+    xcsvfn  = batchnm + "." + xext
+    print icsvfn
+    # print h5pg.keys()
+    lastkeycnt = len(h5pg.keys())
+    print lastkeycnt
+    
+    ihdr = pd.read_csv(icsvfn, nrows=0, sep='\s+')
+    ihdr = ihdr.rename(columns = {'ubid':'sysnum'})
+    
+    # get dose column names and sert dose names
+    dscols =  ihdr.columns.tolist()[3:] 
+    dsnames  =  [dn.replace(iext,'') for dn in dscols]
+    for newnm in dsnames:
+        oldnm = iext + newnm
+        ihdr = ihdr.rename(columns = {oldnm:newnm})
+    
+    ihdr = ihdr.rename(columns = {'uli':'col'})
+    ihdr = ihdr.rename(columns = {'lli':'rec'})
+    # dscnt = len(dsnames)
+    
+    nreps = 1500 
+    yrfrom = 1950
+    if popnm == "eurt":
+        yrfrom = 1957
+    yrto = 2015
+    yrcnt = yrto-yrfrom+1
+    
+    # set up number of chunks
+    pperck = 20
+    ckmax = 1000/pperck
+    if ckmax*pperck < 1000:
+        ckmax +=1
+
+    updatepg(h5pg, icsvfn, 'int', ihdr,dsnames, udoses, nreps, yrcnt, pperck, ckmax )
+    updatepg(h5pg, xcsvfn, 'ext', ihdr,dsnames, udoses, nreps, yrcnt, pperck, ckmax )
+    
+    h5pg.attrs['yrfrom']=yrfrom    
+    h5pg.attrs['yrto']=yrto
+    h5pg.attrs['organs'] = udoses
+    h5pg.attrs['units'] = 'Gy'
+    h5pg.attrs['dlayers'] = ['int', 'ext']
+    
+    keylist = h5pg.keys()
+    newkeycnt = len(keylist)
+    newkeys = newkeycnt  - lastkeycnt
+    print '\n',newkeys, "members added to ", popnm, " HDF5 from batch", batchnm
+    print 'Total members in', popnm, 'HDF5 file:', newkeycnt
+    
+    np.savetxt(popnm+'keylist.csv',keylist,fmt='%s')
+
+def updatepg (h5file, dosecsv, dtype, dshdr, dscols, udoses, nreps, yrcnt, pperck, ckmax ):
+    ckno = 0
+    for chunk in pd.read_csv(dosecsv, header=None, skiprows=[0],
+                      sep='\s+', names = dshdr, chunksize=nreps*yrcnt*pperck, 
+                      iterator=True, na_values='********'): 
+        chunk.fillna(value=0, inplace=True)
+        people = pd.unique(chunk['sysnum'])
+        print ckno, len(chunk), people
+        chunk = chunk.sort_values(by=['sysnum', 'real', 'year'])
+        for p in people:
+            addtopg(h5file, p, chunk, dtype, dscols, udoses,nreps, yrcnt)
+        ckno += 1
+        if ckno >= ckmax:
+            break
+
+def addtopg(h5pg, p, dsdat, dstype, dscols, udoses, rlzcnt, yrcnt, pu='', px=''):
     '''
     dosestoh5pg - save doses in csv file to HDF5 file with person groups
     
@@ -20,31 +115,28 @@ def addtopg(h5pg, p, dsdat, dstype, dscols, rlzcnt, yrcnt, pu='', px=''):
                 person identifier
 
             dsdat
-                pandas data fream with dose realization data
+                pandas data frame with dose realization data
                 (one row per person-year) with columns sysnum, real, year, and doses
             
             dstype
                 'int' for internal or 'ext' for external
             
             dscols
-                list of dose column names
+                list of dose column names in input file
                 
-            pu
-                string of updated data tables (int, ext dsmn)
+            udoses
+                list of columns to be used
                 
-            px
-                string of no updated data tables
+
     '''
     pstr = str(p)
     doses = dsdat.loc[dsdat['sysnum']==p, 'real':dscols[-1]]
-    dsmn=0
-    isexposed = np.max(doses[dscols[0]])>0
+    isexposed = np.max(doses[dscols[1]])>0
     if isexposed:
         # fill 0 dose with previous years value
         doses = doses.apply(lambda x: x.replace(to_replace=0, method='ffill'), axis=0)
-        dsmn = 0 # np.mean(dsarr,axis=0)
         try:
-            dsarr = doses.as_matrix(columns=dscols)
+            dsarr = doses.as_matrix(columns=udoses)
             dsarr = dsarr.reshape((rlzcnt,yrcnt,-1),order='C')
             pgroup = pstr + '/' + dstype
             try:
@@ -56,23 +148,8 @@ def addtopg(h5pg, p, dsdat, dstype, dscols, rlzcnt, yrcnt, pu='', px=''):
         except:
             print "***** Bad data ***** data sysnum ",p
             
-    return pu, px, dsmn
+    return 
 
-def updatepg (h5file, dosecsv, dtype, dshdr, dscols, nreps, yrcnt, pperck, ckmax ):
-    ckno = 0
-    for chunk in pd.read_csv(dosecsv, header=None, skiprows=[0], 
-                      sep='\s+', names = dshdr, chunksize=nreps*yrcnt*pperck, 
-                      iterator=True, na_values='********'): 
-        chunk.fillna(value=0, inplace=True)
-        people = pd.unique(chunk['sysnum'])
-        print ckno, len(chunk), people
-        chunk = chunk.sort_values(by=['sysnum', 'real', 'year'])
-        for p in people:
-            pu, px, idsmn = addtopg(h5file, p, chunk, dtype, dscols, 
-                                      nreps, yrcnt)
-        ckno += 1
-        if ckno >= ckmax:
-            break
         
 def batchinfo(batchfn, iext, chksz = 300000, usecols= 3):
     '''
@@ -104,7 +181,7 @@ def batchinfo(batchfn, iext, chksz = 300000, usecols= 3):
        
     '''
     hdr = pd.read_csv(batchfn, nrows=0, sep='\s+')
-    hdr = hdr.rename(columns = {'ubid':'sysnum'})
+    hdr = hdr.rename(columns = {'ubid':'sysnum'}) 
     dscols =  hdr.columns.tolist()[3:] 
     dsnames  =  [dn.replace(iext,'') for dn in dscols] 
     dscnt = len(dsnames)
@@ -127,78 +204,5 @@ def batchinfo(batchfn, iext, chksz = 300000, usecols= 3):
                     'nreps': rlzcnt})
     return runinfo
 
-def h5update(h5fn,popnm, batch, batchnm):
-    '''
-        trch5update :  Update TRC/EURT hdf5 file using raw TRDS16 output files
-        
-        Arguments:
-            
-            h5fn
-                HDF5 file name  (opened and closed inside this function)
-            
-            popnm
-                population name:  'trc' or 'eurt'
-            
-            batch
-                batch file suffix (like '2k-3k')
-                
-            batchnm
-                root of batchfile name with path but no extension
-                extension (ein/tin, eou/tou) added in this routine
-    '''
-    if popnm == "trc":
-        iext = "tin"
-        xext = "tou"
-    elif popnm == "eurt":
-        iext = "ein"
-        xext = "eou" 
-        
-    icsvfn  = batchnm + "." + iext
-    xcsvfn  = batchnm + "." + xext
-    print icsvfn
-    h5pg = h5py.File(h5fn,'a')
-    lastkeycnt = len(h5pg.keys())
-    print lastkeycnt
-    
-    ihdr = pd.read_csv(icsvfn, nrows=0, sep='\s+')
-    ihdr = ihdr.rename(columns = {'ubid':'sysnum'})
-    
-    # get dose column names and sert dose names
-    dscols =  ihdr.columns.tolist()[3:] 
-    dsnames  =  [dn.replace(iext,'') for dn in dscols] 
-    # dscnt = len(dsnames)
-    
-    nreps = 1500 
-    yrfrom = 1950
-    if popnm == "eurt":
-        yrfrom = 1957
-    yrto = 2015
-    yrcnt = yrto-yrfrom+1
-    
-    # set up number of chunks
-    pperck = 20
-    ckmax = 1000/pperck
-    if ckmax*pperck < 1000:
-        ckmax +=1
-    
-    # h5pgupdate (h5file, dosecsv, dshdr, dscols, nreps, yrcnt, pperck, ckmax ):
-    updatepg(h5pg, icsvfn, 'int', ihdr,dscols, nreps, yrcnt, pperck, ckmax )
-    updatepg(h5pg, xcsvfn, 'ext', ihdr,dscols, nreps, yrcnt, pperck, ckmax )
-    
-    
-    h5pg.attrs['yrfrom']=yrfrom    
-    h5pg.attrs['yrto']=yrto
-    h5pg.attrs['organs'] = dsnames
-    h5pg.attrs['units'] = 'Gy'
-    h5pg.attrs['dlayers'] = ['int', 'ext']
-    
-    keylist = h5pg.keys()
-    newkeycnt = len(keylist)
-    newkeys = newkeycnt  - lastkeycnt
-    print '\n',newkeys, "members added to ", popnm, " HDF5 from batch", batchnm
-    print 'Total members in', popnm, 'HDF5 file:', newkeycnt
-    
-    np.savetxt(popnm+'keylist.csv',keylist,fmt='%s')
-       
-    h5pg.close()    
+
         

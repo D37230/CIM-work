@@ -31,7 +31,7 @@ hdf5path = 'k:/UralsDosimetry/'
 # specify dose repolication and modcov file names
 intdrepfn = 'dfreps.csv'
 mcfname = 'modcovsfix.csv'
-psvname = 'mwds16pufullalt.psv' 
+psvname = 'mwds16puaa.psv' 
 
 projdir = mygithub + 'CIM-work/Mayak lung/'
 modinfodir = hdf5path + 'mayak/mwds16lung/'
@@ -71,14 +71,13 @@ psavef.close()
 
 '''
 
-umod = 0
+umod = 1
 
 
-tnames = ["Baseline", "Smoking", "External dose", "Pu Surrogate" ,"Pu dose"]
-mwcungsub = mwcmc
+tnames = ["Baseline", "Smoking", "External dose", "Pu surrogate + dose"]
 
 modidx = umod
-tnames = ["Baseline", "Smoking", "External dose", "Pu Surrogate" ,"Pu dose"]
+tnames = ["Baseline", "Smoking", "External dose", "Pu surrogate + dose"]
     
 print len(mwcungsub), 'records in anlaysis subset'
 
@@ -104,6 +103,8 @@ con = male + female
 
 lage70 = mwcmc['lage70']
 lage70 = np.reshape(lage70,(-1,1))
+
+lage60 = np.log(np.exp(lage70)*70/60)
 
 lage70sq = mwcmc['lage70sq']
 lage70sq = np.reshape(lage70sq,(-1,1))
@@ -160,6 +161,11 @@ np.sum(presur0)
 mpudgy = male*pudgy
 fpudgy = female*pudgy
 
+postmon2 = np.reshape(mwcmc['postmon2'],(-1,1))
+fpost = postmon2*female
+mpost = postmon2*male
+
+
 pytot = 10000 * np.sum(pyr)
 
 
@@ -172,7 +178,7 @@ print "CIM computation model:", models[umod]['title']
  
 stcovs = []
 # baseline covariates (LOGL 0)
-stcovs.append(np.column_stack((con, female, lage70, lage70sq)))
+stcovs.append(np.column_stack((male, female, lage70, lage70sq)))
 
 # smoking covariates Line 1 + LOGL 1
 stcovs.append(np.column_stack((pky50, munksmk)))
@@ -180,24 +186,29 @@ stcovs.append(np.row_stack((lppd)))
 stcovs.append(np.row_stack((xdgy)))
 
 # Pu dose 
-if (umod == 2):
-    stcovs.append(np.column_stack((mpudgy, fpudgy)))
+if (umod == 0): # M + F:M sex ratio
+    stcovs.append(np.column_stack((presur0, presur1, presur2, 
+                                   presur3, presur4, presur5, 
+                                   presur6, fpusur6, pudgy)))    
+    stcovs.append(np.column_stack((lage60, fpost)))
     pn1 = "Male Pu ERR/Gy"
-    pn2 = "Female Pu ERR/Gy"
-elif (umod == 0 ):
-    stcovs.append(np.row_stack((pudgy)))
-    stcovs.append(np.row_stack((female)))
-    pn1 = "Male Pu ERR/Gy"
-    pn2 = "F:M Pu ERR ratio"
-elif (umod == 1 ):
-    stcovs.append(np.row_stack((pudgy)))
-    stcovs.append(np.row_stack((male)))
+    pn2 = "F:M Pu effect ratio"
+elif (umod == 1 ): # F + M:F sex ratio
+    stcovs.append(np.column_stack((presur0, presur1, presur2, 
+                                   presur3, presur4, presur5, 
+                                   presur6, fpusur6, pudgy)))    
+    stcovs.append(np.column_stack((lage60, mpost)))
     pn1 = "Female Pu ERR/Gy"
-    pn2 = "M:F Pu ERR ratio"    
+    pn2 = "M:F Pu ERR ratio"
+elif (umod == 2 ): # M + F Pu ERR/Gy
+    stcovs.append(np.column_stack((presur0, presur1, presur2, 
+                                   presur3, presur4, presur5, 
+                                   presur6, fpusur6, 
+                                   mpudgy, fpudgy)))    
+    stcovs.append(np.row_stack((lage60)))
+    pn1 = "Male Pu ERR/Gy"
+    pn2 = "Female Pu ERR/Gy"    
 
-# external dose LINE 2
-
-stcovs.append(np.column_stack((presur0, presur1, presur2, presur3, presur4, presur5, presur6, fpusur6)))
 
 
 print '\nAnalysis model:', models[modidx]['title'],'with',len(models[modidx]['subterms'])
@@ -253,8 +264,8 @@ prmcov = mfmodel['prmcov']
 prmvec = mfmodel['prmvec']
     
 doseterm = 3
-dp1 = 9
-dp2 = 10
+dp1 = 17
+dp2 = 19
     
 mfmodel['prmnames'][dp1-1] = pn1
 mfmodel['prmnames'][dp2-1] = pn2
@@ -264,15 +275,15 @@ mfmodel['prmnames'][dp2-1] = pn2
 nopubase = mu/(1 + mfit['termvals'][doseterm][1])
 
 if umod == 0 :
-    dparm = np.exp(prmvec[dp2-1]*female)
+    dparm = np.exp(prmvec[dp2-1]*fpost + prmvec[17]*lage60)
 elif umod == 1 : #  F + M:F sex ratio
-    dparm = np.exp(prmvec[dp2-1]*male) 
+    dparm = np.exp(prmvec[dp2-1]*mpost + prmvec[17]*lage60) 
 elif umod == 2 : # sex-specific ERR
-    dparm = np.ones_like(mu) #  * prmvec[dp1]
+    dparm = np.ones_like(mu)*np.exp(prmvec[17]*lage60) #  * prmvec[dp1]
 
 
 G = dparm * nopubase
-Gadj = prmvec[8]*G
+
 # compute CIM matrix
 cim = mkcimdr(Q, G, intdrep, 1000, prmcov)
 # Wald and Adjusted bounds
@@ -281,7 +292,11 @@ mprmest = prmvec[mpuno]
 mprmse = np.sqrt(prmcov[mpuno, mpuno])
 
 mmse = np.sqrt(cim[mpuno, mpuno])
-mpucim = getCI(mprmest, mprmse, mmse, 0.05)
-mpuwald = getCI(mprmest, mprmse, 0, 0.05)
-dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+for clev in (0.25, 0.50, 0.683, 0.75, 0.90, 0.95,0.975, 0.99, 0.995 ):
+    mpucim = getCI(mprmest, mprmse, mmse, 1-clev)
+    mpuwald = getCI(mprmest, mprmse, 0, 1-clev)
+    cl = 100*clev
+    print "\n    ", '%4.1f' % cl, '% bounds',
+    dispcimbnds(pn1,mprmest,mpuwald, mpucim)
+    
 modcimprmbnds(mfmodel, cim, level=95)

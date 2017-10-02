@@ -353,7 +353,7 @@ def dispcimbnds (desc, prmest, waldbnds, cimbnds, estfmt = '%6.3f'):
         None
     '''
     strfmt = '%' + str(max(len(desc),16)) + 's'
-    print strfmt % desc, " ", estfmt % prmest
+    print '\n' + strfmt % desc, " ", estfmt % prmest
     print strfmt % "Wald bounds:","(", estfmt % waldbnds[0], ',', estfmt % waldbnds[1] , ')'
     print strfmt %  "Adjusted bounds:","(", estfmt % cimbnds[0], ',',  estfmt % cimbnds[1] , ')'
 

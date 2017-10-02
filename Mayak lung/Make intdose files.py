@@ -247,7 +247,9 @@ print  len(np.unique(udbid[hasmon])) , 'workers with', '%9.0f' % pymon, 'person-
 
 # create pandas dataframemodcovs for covariate info
  
-ivlist = ['udbid', 'male', 'female', 'cases', 'munksmk', 'presur0', 'presur1', 'presur2', 'presur3', 'presur4', 'presur5', 'presur6', 'fpusur6'  ]
+ivlist = ['udbid', 'male', 'female', 'cases', 'munksmk', 'presur0', 'presur1', 
+          'presur2', 'presur3', 'presur4', 'presur5', 'presur6', 'fpusur6',
+          'postmon2']
 
 for var in ivlist:
     v =eval(var).astype(int)    
@@ -260,7 +262,8 @@ dfmodcovs = pd.DataFrame({'rowno': monindx.ravel()})
 
 
 
-for var in ['udbid', 'cases', 'pyr', 'year', 'male', 'female', 'lage70' , 'lage70sq', 'pky50', 'munksmk', 'lppd', 'xdgy', 'presur0', 'presur1', 'presur2', 'presur3', 'presur4', 'presur5', 'presur6', 'fpusur6', 'pudgy']:
+for var in ['udbid', 'cases', 'pyr', 'year', 'male', 'female', 'lage70' , 'lage70sq', 'pky50', 'munksmk', 'lppd', 'xdgy', 'presur0', 'presur1', 'presur2', 
+'presur3', 'presur4', 'presur5', 'presur6', 'fpusur6', 'pudgy', 'postmon2']:
     v = eval(var)
     v = v.ravel()
     print var, v.shape 

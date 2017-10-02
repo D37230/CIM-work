@@ -24,13 +24,13 @@ import pandas as pd
 
 # Define mygithub and hdf5path directories and all else should be fine
 
-mygithub = 'C:/Users/prest/Documents/GitHub/'
-hdf5path = 'h:/UralDosimetry/'
+mygithub = 'C:/Users/Dale/Documents/GitHub/'
+hdf5path = 'k:/UralsDosimetry/'
 
 # specify dose repolication and modcov file names
 intdrepfn = 'dfreps.csv'
 mcfname = 'modcovsfix.csv'
-psvname = 'mwds16pu.psv' 
+psvname = 'mwds16puaa.psv' 
 
 projdir = mygithub + 'CIM-work/Mayak lung/'
 modinfodir = hdf5path + 'mayak/mwds16lung/'
@@ -70,7 +70,7 @@ psavef.close()
 
 '''
 
-umod = 2
+umod = 0
 
 
 tnames = ["Baseline", "Smoking", "External dose", "Pu Surrogate" ,"Pu dose"]
@@ -101,6 +101,8 @@ female = np.reshape(female,(-1,1))
 
 lage70 = mwcmc['lage70']
 lage70 = np.reshape(lage70,(-1,1))
+
+lage60 = lage70*(np.log(70/60))
 
 lage70sq = mwcmc['lage70sq']
 lage70sq = np.reshape(lage70sq,(-1,1))
@@ -152,6 +154,8 @@ pudgy = mwcmc['pudgy']
 pudgy = np.reshape(pudgy,(-1,1))
 mpudgy = male*pudgy
 fpudgy = female*pudgy
+postf = fpudgy > 0
+postm = mpudgy > 0 
 
 pytot = 10000 * np.sum(pyr)
 
@@ -173,25 +177,29 @@ stcovs.append(np.row_stack((lppd)))
 
 # external dose LINE 2
 stcovs.append(np.row_stack((xdgy)))
-stcovs.append(np.column_stack((presur0, presur1, presur2, presur3, presur4, presur5, presur6, fpusur6)))
+
 
 # Pu dose 
-if (umod == 2):
-    stcovs.append(np.column_stack((mpudgy, fpudgy)))
+if (umod == 0):  # M + F:M sex ratio
+    stcovs.append(np.column_stack((presur0, presur1, presur2, presur3, presur4, 
+                               presur5, presur6, fpusur6, pudgy)))    
+    stcovs.append(np.column_stack((lage60, postf)))
     pn1 = "Male Pu ERR/Gy"
-    pn2 = "Female Pu ERR/Gy"
-elif (umod == 0 ):
-    stcovs.append(np.row_stack((pudgy)))
-    stcovs.append(np.row_stack((female)))
-    pn1 = "Male Pu ERR/Gy"
-    pn2 = "F:M Pu ERR ratio"
-elif (umod == 1 ):
-    stcovs.append(np.row_stack((pudgy)))
-    stcovs.append(np.row_stack((male)))
+    pn2 = "Female:Male Pu sex ratio"
+elif (umod == 1 ):# F + M:F sex ratio
+    stcovs.append(np.column_stack((presur0, presur1, presur2, presur3, presur4, 
+                               presur5, presur6, fpusur6, pudgy)))    
+    stcovs.append(np.column_stack((lage60, postm)))
+    pn1 = "Female Pu ERR/Gy"
+    pn2 = "Male:Female Pu sex ratio"
+elif (umod == 2 ):  # M + F Pu ERR/Gy main effects
+    stcovs.append(np.column_stack((presur0, presur1, presur2, presur3, presur4, 
+                               presur5, presur6, fpusur6, mpudgy, fpudgy)))    
+    stcovs.append(np.column_stack((lage60)))
     pn1 = "Female Pu ERR/Gy"
     pn2 = "M:F Pu ERR ratio"    
 
-print '\nAnalysis model:', models[modidx]['title'],'with',len(models[modidx]['subterms'])
+print '\nAnalysis model:', models[modidx]['title']
 print "Subterm covariate lists:", len(stcovs)    
 
 

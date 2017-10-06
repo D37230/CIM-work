@@ -66,7 +66,7 @@ for people in trch5pg :
         else:
             dzeros[people]=lzcnt
             break
-print
+
 
 # set uyp for making realizaiton data sets
     

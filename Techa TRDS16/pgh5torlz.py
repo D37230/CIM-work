@@ -19,7 +19,15 @@ os.chdir(trch5dir)
 
 trch5pg = h5py.File(h5base+h5sub+'.h5','r')
 trch5rz = h5py.File("x:/"+h5base+h5rz+'.h5')
-
+try:
+    rzgrp = trch5rz.create_group('realizations')
+except:
+     rzgrp = trch5rz['realizations']   
+try:
+    ssgrp = trch5rz.create_group('sumstat')
+except:
+    ssgrp = trch5rz['sumstat']
+    
 trcmembers = trch5pg.keys()
 
 nreps = 1500
@@ -43,35 +51,64 @@ rowno = 0
 for id in idlist:
     rlzrows[str(id)] =  rowno
     rowno = rowno + 1
+# count leading 0 doses    
+dzeros = {}
+npeeps=0
+for people in trch5pg :
+    npeeps = npeeps+1
+    if npeeps%1000 == 0:
+        print npeeps,
+    r0 = trch5pg[people + '/int'][0,:,0]
+    lzcnt  = 0    
+    for i in range(0,yrcnt):
+        if r0[i] == 0.:
+            lzcnt = lzcnt+ 1
+        else:
+            dzeros[people]=lzcnt
+            break
+print
+
+# set uyp for making realizaiton data sets
+    
 
 badcnt = 0
 badrow = 999999
-dzero = np.zeros(66)
 badlist = []
 # loop over organs
-for orgno in range(len(orglist)):  
+for orgno in [0,2]:  
    organ = orglist[orgno]
-   print organ,
+   try:
+        ssorg = ssgrp.create_group(organ)
+   except:
+        ssorg = ssgrp[organ]
+   print '\n',organ,
    # initialize realization data arrayfor this organ
-   rlzdata = np.zeros((npeople,yrcnt,2))        
+   rlzdata = np.zeros((npeople,yrcnt,2))
+   rzam = np.zeros((npeople,yrcnt,2))         
    # loop over people for this realization
-   for rzno in range(0,5):
+   wgt=0
+   for rzno in range(0,1500):
         rzstr = str(rzno)
         try:
-            trch5rz.create_group(rzstr)
+           rzngrp = rzgrp.create_group(rzstr)
         except:
-           pass 
-            
-        rzgrp = trch5rz[rzstr]
+           rzngrp = trch5rz[rzstr]
         
-        if (rzno % 2)==0:
+        if (rzno % 100)==0:
             print  rzno, 
         for people in trch5pg:
             rlzrow = rlzrows[people]
             # print people, rlzrow, rzno, orgno
-            rlzdata[rlzrow,:,0] = trch5pg[people + '/int'][rzno,:,orgno]
+            lz = dzeros[people]
+            rzdi = trch5pg[people + '/int'][rzno,:,orgno] 
+            if lz>0:
+                rzdi[range(0,lz)] = 0
+            rlzdata[rlzrow,:,0] = rzdi
             try:
-                rlzdata[rlzrow,:,1] = trch5pg[people + '/ext'][rzno,:,orgno]
+                rzdx = trch5pg[people + '/ext'][rzno,:,orgno]
+                if lz>0:
+                    rzdx[range(0,lz)] = 0
+                rlzdata[rlzrow,:,1] = rzdx
             except:
                 if rzno==0:
                     badcnt = badcnt + 1
@@ -80,22 +117,34 @@ for orgno in range(len(orglist)):
                     # print "No external dose", people, rlzrow, badcnt, badrow
         
         try:
-            rzgrp.create_dataset(organ,data=rlzdata, dtype='f',
+            rzngrp.create_dataset(organ,data=rlzdata, dtype='f',
                                 compression='gzip', compression_opts=9)
+            wgt += 1
+            rzam = rzam + (rlzdata - rzam)/wgt
         except:
             pass
-
-print "Bad count ", badcnt    
+   try:
+       ssorg.create_dataset('am',data=rzam, compression='gzip',
+                             compression_opts=9)
+   except:
+        print '\n could not create ',organ,' am sumstat dataset'
         
 
+print "\nBad count ", badcnt    
+        
+
+
 '''
-rlzdata = np.zeros((npeople,yrcnt,2)) 
+
 pid = '43'        
 p43row = rlzrows[pid]  
 rzno = 0
 orgno= 3        
 p43rbmi = trch5pg[pid+'/int'][rzno,:,orgno]
 p43rbmx = trch5pg[pid+'/ext'][rzno,:,orgno]
+
+r0rbm = trch5rz['0/rbm'][:]
+r1rbm = trch5rz['1/rbm'][:]
 
 
 mxrow = -1
@@ -104,4 +153,4 @@ for people in trch5pg:
     print people, rlzrows[people]
     
 rlzdata[rlzrow,:,0] = trch5pg[people + '/int'][rzno,:,orgno]
-,,,
+'''

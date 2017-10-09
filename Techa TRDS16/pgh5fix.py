@@ -108,6 +108,12 @@ if negcnt>0:
     print neglist
 
 
+for atr in trch5pg.attrs.keys():
+    trch5fx.attrs[atr] =  trch5pg.attrs[atr]
+    print atr, trch5fx.attrs[atr]
+
+trch5fx.attrs['nreps'] = 1500
+
 trch5fx.close()
 
 

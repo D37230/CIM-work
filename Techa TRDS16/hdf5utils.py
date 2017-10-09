@@ -205,4 +205,87 @@ def batchinfo(batchfn, iext, chksz = 300000, usecols= 3):
     return runinfo
 
 
+def  pgtorlz(pgh5, rzh5, npeople, nreps, yrcnt, orgno, organ, rzrows, chunksz=50):
+    '''
+    pgtorlz  move for an organ data in a person-group hdf5 file to a relaization group hdf5 file
+    
+    Arguments:
+        pgh5
+            Person group hdf5 file
         
+        rzh5
+            Realization group hdf5 file (usually the 'realizations' group in
+            an hdf5 file with 'realzations' and 'sumstat' groups)
+            
+        npeople
+            Number of people in with dose
+        nreps
+            Number of realizations
+            
+        yrcnt
+            NUmber of years
+            
+        orgno
+            layer number for organ of interest
+            
+        organ
+            name for organ of interest
+            
+        rzrows
+            dictionary of Id's with link to row for that person in 
+            realization datasets
+            
+        chunksz
+            Number of relaizations to process per pass through people in 
+            person group file
+    
+    Notes:
+        
+        person-group hdf5 structure:
+            /ID groups with 3D int and ext datasets
+            realization by year by organ
+        
+        realization-group structure
+            /realizaitons/rzno with 3D organ datasets
+            person by year by [int, ext]
+            
+    ''' 
+    
+    print '\n',organ,
+    chunksz = 50
+    nchunks = nreps/chunksz
+    # initialize realization data arrayfor this organ
+    rlzdata = np.zeros((chunksz,npeople,yrcnt,2))
+
+    for chunk in range(nchunks):
+        rznos = range(chunk*chunksz,(chunk+1)*chunksz)
+        for rzno in rznos:
+            rzstr = str(rzno)
+            try:
+                rzngrp = rzh5.create_group(rzstr)
+            except:
+                rzngrp = rzh5[rzstr]
+            
+        i = 0
+        print '\nChunk ',chunk,':',
+        for people in pgh5.iteritems():
+            i += 1
+            if i % 5000 == 0:
+                print i,
+            rlzrow = rzrows[people[0]]
+            # print people, rlzrow, rzno, orgno
+            rzdi = people[1]['int'][rznos,:,orgno] 
+            rlzdata[range(0,chunksz),rlzrow,:,0] = rzdi
+            rzdx = people[1]['ext'][rznos,:,orgno]
+            rlzdata[range(0,chunksz),rlzrow,:,1] = rzdx
+
+        print i, "Creating HDF5 datasets",
+        for i in range(0,chunksz):
+            if i % 10 == 0:
+                print rznos[i],
+            rzngrp = rzh5[str(rznos[i])]
+            rzngrp.create_dataset(organ,data=rlzdata[i,:,:,:], dtype='f',
+                                     compression='gzip', compression_opts=9)
+
+        print rznos[i],    
+# end of pgtorlz        

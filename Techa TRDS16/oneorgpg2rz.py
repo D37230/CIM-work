@@ -10,6 +10,7 @@ import os
 import sys
 import numpy as np
 
+
 ghdir = 'C:/Users/Dale/Documents/GitHub/CIM-Work/'
 cimworkdir = ghdir + 'Techa TRDS16'
 sys.path.append(cimworkdir)
@@ -20,7 +21,7 @@ import hdf5utils as trch5
 trch5dir = 'k:/uralsdosimetry/techa/hdf5/'
 h5base = 'trc16mc'
 h5sub = 'ds1'
-h5rz  = 'trz1'
+h5rz  = 'rz1'
 
 pgname = trch5dir +h5base+h5sub+'fix.h5'
 rzname = 'x:/' + h5base +h5rz+'.h5'
@@ -83,35 +84,7 @@ for orgno in range(len(orglist)):
     trch5.pgtorlz(trch5pg, rzgrp, npeople, nreps, yrcnt, orgno, organ, rlzrows)   
         
 trch5pg.close()
-
-
-rzgrp = trch5rz['realizations']
-for orgno in range(len(orglist)):
-    rzam = np.zeros((npeople,yrcnt,2))
-    rzse = rzam
-    rno = 0
-    organ = orglist[orgno]
-
-    print '\nComputing mean', organ, 'dose:', 
-    for rlz in rzgrp.iteritems():
-        rno += 1
-        rzdata = rlz[1][organ][:]
-        delta = (rzdata - rzam)/rno
-        rzam = rzam + delta
-        rzse = rzse + (rzdata-rzam)*delta
-        if (rno % 100)==0:
-            print rno,
-    rzse = rzse/max(1,(rno-1))
- 
-    try:
-        ssorg = trch5rz.create_group('sumstat/'+organ)
-    except:
-        ssorg = trch5rz['sumstat/'+organ]
- 
-
-    ssorg.create_dataset('am',data=rzam, dtype='f',
-                          compression='gzip', compression_opts=9) 
-    # ssorg.create_dataset('/se',data=rzse, dtype='f',
-    #                      compression='gzip', compression_opts=9) 
-
 trch5rz.close() 
+
+
+    

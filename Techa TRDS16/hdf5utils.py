@@ -2,20 +2,50 @@
 """
 Created on Mon Sep 11 07:11:32 2017
 
-@author: prest
+@author: Dale Preston
+contest:
+        h5update:
+            main program to create person-group files from Techa source files
+        updatepg:
+            loops through source file in chunks and calls addtopg to add 
+            person-group to hdf5 file
+        
+        addtopg:
+            Adds person group datasets to file
+            
+        batchinfo:
+            Gets basic information about data (number of replicattion, start 
+            and stop years) from source files -- not yet fully tested
+            
+        pgtorlz:
+            use date in a person-group hdf5 file to create a 
+            realization-group HDF5 file
+            
+        rzsumstat:
+            Use realization group data to construct summary dose datasets
+            for sumstat node.  Thes include: 
+                arithmetic means (am) 
+                arithmetic standard deviation (asd)
+                geomteric mean (gsd)
+                geometric standard deviation (gsd)
+        
 """
 import numpy as np
 import pandas as pd
-import h5py
+
 
 def h5update(h5pg,popnm, batch, batchnm, udoses):
     '''
-        trch5update :  Update TRC/EURT hdf5 file using raw TRDS16 output files
+        trch5update :   
+            Update TRC/EURT hdf5 file using raw TRDS16 output files sets up
+            HDF5 file and secifies attributes
+                        
         
         Arguments:
             
-            h5fn
-                HDF5 file name  (opened and closed inside this function)
+            h5pg
+                HDF5 file handle  (opened and closed inside outside this 
+                function); person groups are created in this group
             
             popnm
                 population name:  'trc' or 'eurt'
@@ -164,7 +194,7 @@ def batchinfo(batchfn, iext, chksz = 300000, usecols= 3):
             number of rows to read_csvd for checkinf number of realizations and 
             year range.  Default 300,000
         usecols
-            number of columns to read. Default 3 (sysnum, relizaiton number, year)
+            number of columns to read. Default 3 (sysnum, relization number, year)
 
     Returns:
         dictionary with entries
@@ -288,4 +318,66 @@ def  pgtorlz(pgh5, rzh5, npeople, nreps, yrcnt, orgno, organ, rzrows, chunksz=50
                                      compression='gzip', compression_opts=9)
 
         print rznos[i],    
-# end of pgtorlz        
+# end of pgtorlz   
+        
+def rzsumstat(rzh5, organ, ldmin=1e-6):
+    '''
+    rzsumstat:
+            Compupter aritmetic and geometric standard errors from 
+            dose realization datasaets for specified organ
+            
+    Arguments:
+            
+            rzh5
+                hdf5 file group with (numbered) realization nodes
+                
+            organ
+                name of organ node -- it iassumed that the data is in nodes like
+                  '0/' + organ
+            ldmin
+                minimum dose value to be used in place of 0's when computing 
+                the GM and GSD  -- default 1e-6
+                
+    Returns:
+            rzam
+                arithmetic mean dose array
+            rzsd
+                arithmetic standard deviation array
+            rzgm
+                geomteric mean array ( computed using ldmin in place of 0 dose
+                with values set to zero if corresponding gsd is 1 and 
+                the arithmentic mean is zero)
+            rzgsd
+                geometric standard devation
+    '''           
+    
+    rzam = np.zeros_like(rzh5['0/'+organ][:])
+    rzse = rzam
+    rzgm = rzam
+    rzgsd = rzam
+    rno = 0
+    print '\nComputing mean', organ, 'dose:', 
+    for rlz in rzh5.iteritems():
+        rno += 1
+        rzdata = rlz[1][organ][:]
+
+        delta = (rzdata - rzam)
+        rzam = rzam + delta/rno
+        rzse = rzse + (rzdata-rzam)*delta
+        rzdata[rzdata<=0] = ldmin
+        lrzd = np.log(rzdata)        
+        ldelta = (lrzd - rzgm)
+        rzgm = rzgm + ldelta/rno
+        rzgsd = rzgsd + (lrzd - rzgm)*ldelta
+        if (rno % 100)==0:
+            print rno,
+            
+    print
+    rzsd = np.sqrt(rzse/max(1,(rno-1)))
+    rzgm = np.exp(rzgm)
+    rzgsd = np.exp(np.sqrt(rzgsd/(max(1,rno,1))))
+    zdam = (rzgsd == 1) & (rzam == 0)
+    rzgm[zdam]=0
+    return [rzam, rzsd, rzgm, rzgsd]
+# end of rzsumstat
+        

@@ -202,6 +202,91 @@ def mkcimdr(Q, G, intdreps, rlzcnt, prmcov, reppfx= 'rep', infoevery=100):
        
     return np.dot(prmcov, np.dot(cim, prmcov))
 
+def mkcimdr_chunk(Q, G, intdrepfn, rlzcnt, prmcov, chunk_size, reppfx= 'rep', infoevery=100):
+    '''  
+    Compute CIM adjustment matrix
+
+    Arguments:
+
+        Q
+            Q matrix (score like as per computation notes)
+
+        G
+            Diagonal of G matrix (as per computation notes)
+
+           
+        rlzcnt
+            number of realizations
+
+        prmcov
+            parameter covariance matrix
+            
+        reppfx
+            Replicaiton variable name prefix (defualt 'rep') names are
+            assumed to have the form reppfxn  with n is the replication number
+            
+        infoevery
+            print porgress indicator every infoevery realizations
+        
+    Returns:
+        
+        CIM matrix
+            I-1 M I-1
+    '''
+    drows = pd.read_csv(intdrepfn, nrows=1, header=None, index_col=0, skiprows=1)
+    drows = drows.transpose()
+    drows = np.array(drows['rowno'].astype(int))
+    drep = np.zeros_like(G)
+    QG = np.transpose(Q*G)
+    rlzno = 0
+    infotimes = 0
+    print "Number of realizations ", rlzcnt
+    # number of replications to read per cycle iteration
+    # -4: because first 4 rows are not replications
+    repstoread = chunk_size-4
+    currlz = 0 # current realization
+    print currlz,  currlz + repstoread
+    for chunk in pd.read_csv(intdrepfn, chunksize=chunk_size, header=None, index_col=0):
+        chunk = chunk.transpose()
+        # conversion from df to array
+        arr_ip = [tuple(i) for i in chunk.as_matrix()]
+        dtyp = np.dtype(list(zip(chunk.dtypes.index, chunk.dtypes)))
+        chunk = np.array(arr_ip, dtype=dtyp)
+    
+        for rno in range(currlz, (currlz + repstoread)): 
+            repname = reppfx + str(rno)
+            idrlz = chunk[repname]
+            idrlz = np.reshape(idrlz, (-1, 1))
+            drep[drows] = idrlz
+            if rno == 0:
+                qgd = np.dot(QG, (drep))
+                qgd0 = qgd
+    
+                '''            
+                print '\n',repname
+                for i in range(18):
+                    print i, qgd0[i]
+                print '\n'
+                '''            
+            else:
+                qgd = np.column_stack((qgd, np.dot(QG, drep)))
+            
+            '''
+            rlzno += 1
+            if infoevery:
+                if (rlzno % infoevery) == 0:
+                    infotimes += 1
+                    print rlzno, " ",
+                    if infotimes == 10:
+                        infotimes = 0
+            '''
+        currlz += repstoread # increase current realization
+        print currlz,  currlz + repstoread
+        repstoread = chunk_size
+    cim = np.cov(qgd)
+       
+    return np.dot(prmcov, np.dot(cim, prmcov))
+
 def logNormal2Normal(amean, asd):
     '''
     lnmusig - compute log-scale mean and sd given aritimetic mean and sd

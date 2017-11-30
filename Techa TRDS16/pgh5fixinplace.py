@@ -19,24 +19,24 @@ import numpy as np
 
 '''
 
-trch5dir = 'k:/uralsdosimetry/techa/hdf5'
-trch5fxdir = 'f:/techa_hdf5'
+trch5dir = 'h:/Uraldosimetry/techa/hdf5'
+trch5fxdir = 'h:'
 h5base = 'trc16mc'
-h5sub = 'ds3'
+h5sub = 'ds1'
+pgname = trch5dir + '/' + h5base + h5sub + '.h5'
+fxname = trch5fxdir + '/' + h5base + h5sub + 'fix.h5'
 
 os.chdir(trch5fxdir)
 
 
-trch5pg = h5py.File(h5base+h5sub+'.h5','r+')
-trch5fx = h5py.File(trch5fxdir + '/' + h5base+h5sub+'fix.h5')
+trch5pg = h5py.File(pgname,'r+')
+trch5fx = h5py.File(fxname)
 
-pgname = trch5dir + '/' + h5base + h5sub + '.h5'
-fxname = trch5fxdir + '/' + h5base + h5sub + 'fix.h5'
+
 # add group for person with 0 internal and external MC dose esitmates
 try:
     trch5pg['132119']
     print '132119 already exists'
-    print trch5pg['132119'].keys()
 
 except:
     trch5pg.create_group('132119')
@@ -158,9 +158,9 @@ if noicnt>0:
 
 if inegcnt>0:
     if inegcnt == 1: 
-        print '\n', inegcnt, "person with negative external cum dose"
+        print '\n', inegcnt, "person with negative internal cum dose"
     else:
-        print '\n', inegcnt, "people with negative external cum dose"
+        print '\n', inegcnt, "people with negative internal cum dose"
     print ineglist
 
 trch5pg.close()

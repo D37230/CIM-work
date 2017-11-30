@@ -19,34 +19,31 @@ import hdf5utils as trch5
 
 trch5dir = 'h:/uraldosimetry/techa/hdf5/'
 
-h5base = 'trc16mc'
-h5sub = 'ds1'
+h5base = 'eurt16mc'
 h5rz  = 'rz1'
 
-pgname = trch5dir +h5base+h5sub+'.h5'
 rzname = trch5dir +h5base +h5rz+'.h5'
 os.chdir(trch5dir)
 
-trch5pg = h5py.File(pgname,'r')
-idlist = trch5pg.keys()
-idnumlist = map(int, idlist)
-idnumlist.append(132119)  # add missing sysnum
-idnumlist.sort()
 
 trch5rz = h5py.File(rzname,'r')
 
-orglist = trch5rz.attrs['organs']
+idnumlist = trch5rz['sumstat/idlist'][:]
+
+
+
+
+
 rzh5 = trch5rz['realizations']
 ssh5 = trch5rz['sumstat']
 
 [rzam, rzasd,rzgm, rzgsd] = trch5.rzsumstat(rzh5,'sto')
-np.savetxt('tistoam.txt',rzam[:,:,0],delimiter=',')
-np.savetxt('txstoam.txt',rzam[:,:,1],delimiter=',')
-np.savetxt('tistogm.txt',rzgm[:,:,0],delimiter=',')
-np.savetxt('txstogm.txt',rzgm[:,:,1],delimiter=',')
-#np.savetxt('trcids.txt',idnumlist,fmt='%d')
+np.savetxt('eistoam.txt',rzam[:,:,0],delimiter=',')
+np.savetxt('exstoam.txt',rzam[:,:,1],delimiter=',')
+np.savetxt('eistogm.txt',rzgm[:,:,0],delimiter=',')
+np.savetxt('exstogm.txt',rzgm[:,:,1],delimiter=',')
+np.savetxt('eurtids.txt',idnumlist,fmt='%d')
 xxx
-
 for organ in orglist:
     [rzam, rzasd,rzgm, rzgsd] = trch5.rzsumstat(rzh5,organ)
     try:
